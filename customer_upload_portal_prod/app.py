@@ -20,6 +20,7 @@ from msal import ConfidentialClientApplication
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 SMALL_UPLOAD_LIMIT = 250 * 1024 * 1024  # 250 MB
 CHUNK_SIZE = 327680 * 20  # 6.25 MB, valid multiple of 320 KiB
+MAX_TOTAL_UPLOAD_MB = 1000
 
 
 def is_placeholder(value: str) -> bool:
@@ -331,6 +332,14 @@ def guess_extension(filename: str, content_type: str) -> str:
     guessed = mimetypes.guess_extension(content_type or "")
     return guessed or ""
 
+def format_size(num_bytes: int) -> str:
+    units = ["B", "KB", "MB", "GB"]
+    value = float(num_bytes)
+    for unit in units:
+        if value < 1024 or unit == units[-1]:
+            return f"{value:.1f} {unit}" if unit != "B" else f"{int(value)} {unit}"
+        value /= 1024
+    return f"{num_bytes} B"
 
 def build_base_output_name(customer_name: str, order_number: str, index: int, original_name: str, content_type: str) -> str:
     safe_customer = sanitize_name(customer_name).replace(" ", "_")
@@ -359,7 +368,7 @@ def ensure_unique_filename(drive_id: str, folder_path: str, candidate_name: str)
         counter += 1
 
 
-def upload_small_file(drive_id: str, parent_id: str, output_name: str, data: bytes, content_type: str) -> dict:
+def upload_small_file(drive_id: str, parent_id: str, output_name: str, data: bytes | memoryview, content_type: str) -> dict:
     encoded_name = quote(output_name, safe="")
     return graph_json(
         "PUT",
@@ -369,7 +378,7 @@ def upload_small_file(drive_id: str, parent_id: str, output_name: str, data: byt
     )
 
 
-def upload_large_file(drive_id: str, parent_id: str, output_name: str, data: bytes) -> dict:
+def upload_large_file(drive_id: str, parent_id: str, output_name: str, data: bytes | memoryview) -> dict:
     encoded_name = quote(output_name, safe="")
     session = graph_json(
         "POST",
@@ -482,7 +491,7 @@ with st.form("upload_form", clear_on_submit=False):
         "Upload photos and videos *",
         type=["jpg", "jpeg", "png", "heic", "heif", "webp", "mp4", "mov", "m4v", "avi"],
         accept_multiple_files=True,
-        help="You can select multiple files at once.",
+        help="You can select multiple files at once. Max 500 MB per file.",
     )
     submitted = st.form_submit_button("Upload to SharePoint", use_container_width=True)
 
@@ -498,6 +507,15 @@ if submitted:
 
     if not uploaded_files:
         st.error("Please upload at least one file.")
+        st.stop()
+
+    total_size_bytes = sum(getattr(file, "size", 0) or 0 for file in uploaded_files)
+    max_total_bytes = MAX_TOTAL_UPLOAD_MB * 1024 * 1024
+    if total_size_bytes > max_total_bytes:
+        st.error(
+            f"Total selected size is {format_size(total_size_bytes)}. "
+            f"Please keep total selection under {MAX_TOTAL_UPLOAD_MB} MB and upload in batches."
+        )
         st.stop()
 
     try:
@@ -534,7 +552,7 @@ if submitted:
             uploaded_names = []
 
             for i, file in enumerate(uploaded_files, start=1):
-                data = file.getvalue()
+                data = file.getbuffer()
                 candidate_name = build_base_output_name(
                     customer_name=customer_name,
                     order_number=order_number,
