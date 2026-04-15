@@ -332,6 +332,7 @@ def guess_extension(filename: str, content_type: str) -> str:
     guessed = mimetypes.guess_extension(content_type or "")
     return guessed or ""
 
+
 def format_size(num_bytes: int) -> str:
     units = ["B", "KB", "MB", "GB"]
     value = float(num_bytes)
@@ -340,6 +341,7 @@ def format_size(num_bytes: int) -> str:
             return f"{value:.1f} {unit}" if unit != "B" else f"{int(value)} {unit}"
         value /= 1024
     return f"{num_bytes} B"
+
 
 def build_base_output_name(customer_name: str, order_number: str, index: int, original_name: str, content_type: str) -> str:
     safe_customer = sanitize_name(customer_name).replace(" ", "_")
