@@ -20,7 +20,7 @@ from msal import ConfidentialClientApplication
 GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 SMALL_UPLOAD_LIMIT = 250 * 1024 * 1024  # 250 MB
 CHUNK_SIZE = 327680 * 20  # 6.25 MB, valid multiple of 320 KiB
-MAX_TOTAL_UPLOAD_MB = 1000
+MAX_TOTAL_UPLOAD_MB = 5000
 
 
 def is_placeholder(value: str) -> bool:
