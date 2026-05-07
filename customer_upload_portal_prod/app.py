@@ -926,10 +926,6 @@ function setFileProgress(i, pct) {{
 }}
 
 async function createUploadSession(outputName) {{
-  // Use path-based URL: /drives/{id}/root:/{folder/path/filename}:/createUploadSession
-  // This is more reliable than the item-ID approach because OneDrive personal item IDs
-  // contain "!" characters (e.g. "root!abc123") that can corrupt the URL when embedded
-  // directly in a path segment.
   const pathParts = DESTINATION_PATH.split('/').map(encodeURIComponent).join('/');
   const encodedName = encodeURIComponent(outputName);
   const url = `${{GRAPH_BASE}}/drives/${{DRIVE_ID}}/root:/${{pathParts}}/${{encodedName}}:/createUploadSession`;
